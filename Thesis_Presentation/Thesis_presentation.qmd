@@ -360,7 +360,9 @@ ggplot(df_plot, aes(x, dens, colour = dist)) +
 <span class="highlight">Entropy as a solution</span>
 <br>
 
-- Entropy quantifies the uncertainty (or dispersion) of the intensities, textured regions tend to show **higher entropy** than homogeneous ones.
+- Entropy quantifies the uncertainty (or unpredictability) of the intensities.
+
+- Textured regions tend to show **higher entropy** than homogeneous ones.
 
 - **Strategy**: Estimate the entropy non-parametrically, and compare it with the theoretical Gamma entropy using the sample mean and the known value of $L$. This provides a test for detecting heterogeneity.
 
