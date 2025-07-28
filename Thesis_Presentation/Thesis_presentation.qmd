@@ -1,0 +1,2167 @@
+---
+title: "Entropy-Based Test Statistics for Heterogeneity Detection in SAR Data<Hr>"
+subtitle: "Rosa Janeth Alpala<Br>"
+author: "Advisor: Dr. Alejandro Frery <Br> Co-advisor:  Dr.  Abraão do Nascimento <Br><Br>"
+institute: "Programa de Pos-graduação em Estatística <Br> July 28, 2025"
+#resources:
+#  - images/logo-ufpe2.png
+#  - images/facepe1.png
+format:
+  revealjs:
+    width: 1920
+    height: 1080
+    #width: 1150
+    slide-number: true
+    #number-sections: false
+   # math:
+      #mathjax: true
+      #numberEquations: true
+    sc-sb-title: true
+    incremental: true   
+    logo: images/ufpe.png 
+    include-after: |
+      <script>
+        function toggleBigLogo(event) {
+          document.querySelectorAll("img.big-logo").forEach(el => el.remove());
+          document.querySelectorAll(".reveal .slides > section").forEach(slide => {
+            slide.style.position = "";
+          });
+
+          if (event.indexh === 0) {
+            const slide = event.currentSlide;
+            slide.style.position = "relative";
+
+            const img1 = document.createElement("img");
+            img1.src = "images/logo-ufpe2.png";
+            img1.className = "big-logo";
+            img1.style.position = "absolute";
+            img1.style.top = "300px";
+            img1.style.right = "130px";
+            img1.style.width = "270px";
+            img1.style.height = "auto";
+            img1.style.pointerEvents = "none";
+            img1.style.zIndex = "10";
+            slide.appendChild(img1);
+
+            const img2 = document.createElement("img");
+            img2.src = "images/facepe1.png";
+            img2.className = "big-logo";
+            img2.style.position = "absolute";
+            img2.style.top = "500px";      // 
+            img2.style.right = "130px";
+            img2.style.width = "250px";
+            img2.style.height = "auto";
+            img2.style.pointerEvents = "none";
+            img2.style.zIndex = "10";
+            slide.appendChild(img2);
+          }
+        }
+
+        Reveal.on("ready", toggleBigLogo);
+        Reveal.on("slidechanged", toggleBigLogo);
+
+        Reveal.on("ready", event => {
+          if (event.indexh === 0) {
+            document.querySelectorAll("img.slide-logo").forEach(el => el.style.display = "none");
+          }
+        });
+        Reveal.on("slidechanged", event => {
+          document.querySelectorAll("img.slide-logo").forEach(el => {
+            el.style.display = (event.indexh === 0 ? "none" : "");
+          });
+        });
+      </script>
+
+    #footer: "Course Introduction"
+    #footer-logo-link: "https://vladislav-morozov.github.io/econometrics-2/"
+    #math:
+      #mathjax: true
+      #numberEquations: true
+    theme: assets/slides_theme.scss
+    #css: [ custom.css ] 
+    toc: TRUE
+    toc-depth: 2
+    toc-title: Outline
+    #transition: fade
+    #transition-speed: slow
+slide-level: 4
+title-slide-attributes:
+    data-background-color: "#045D5D"
+    data-footer: " "
+filters:
+  - reveal-header # install in terminal: quarto add shafayetShafee/reveal-header
+embed-resources: true
+#include-in-header: assets/mathjax.html 
+highlight-style: tango
+bibliography: references.bib
+csl: "abnt" 
+
+#open-graph:
+
+---
+
+```{r setup, include=FALSE}
+
+#knitr::opts_chunk$set(echo = FALSE, cache = TRUE)
+knitr::opts_chunk$set(
+  echo = FALSE,
+  cache = TRUE
+ # fig.path = "Figures-R1/"
+) # unique path to save all code-generated and external figures
+
+# Configurar CRAN
+options(repos = c(CRAN = "https://cran.rstudio.com/"))
+
+# install and load packages only if they are missing
+install_and_load <- function(packages) {
+  missing_packages <- packages[!(packages %in% installed.packages()[, "Package"])]
+  if (length(missing_packages)) {
+    install.packages(missing_packages, dependencies = TRUE)
+  }
+  invisible(lapply(packages, library, character.only = TRUE))
+}
+
+#  packages
+required_packages <- c(
+ "ggplot2", "reshape2", "knitr", "pandoc", "gridExtra", 
+  "gtools", "stats4", "rmutil", "scales", "tidyr", "invgamma", 
+  "tidyverse", "RColorBrewer", "ggsci", "carData", "ggpubr",  "patchwork", "dplyr", 
+  "kableExtra", "ggthemes", "latex2exp", "e1071", "viridis", "nortest", "bookdown","terra", "sf", "pROC", "purrr"
+)
+
+# Install and load only missing packages
+install_and_load(required_packages)
+
+
+theme_set(theme_minimal() +
+            theme(text = element_text(family = "serif"),
+                  legend.position = "bottom"))
+
+
+
+# External functions
+source("./Code/gamma_sar_sample.R")
+source("./Code/gi0_sample.R")
+source("./Code/al_omari_1_estimator.R")
+source("./Code/bootstrap_al_omari_1_estimator.R")
+source("./Code/renyi_entropy_estimator_v1.R")
+source("./Code/bootstrap_renyi_entropy_estimator_v1.R")
+source("./Code/entropy_renyi_gamma_sar.R")
+source("./Code/functions_sample_bias_mse.R")
+source("./Code/functions_sample_bias_mse_1.R")
+#source("./Code/read_ENVI_images.R")
+
+```
+
+## INTRODUCTION  {background="#045D5D"}
+
+#### Starting point
+
+
+
+
+-   Synthetic Aperture Radar (SAR) technology is essential for environmental monitoring and disaster management.
+
+-   It provides 	images under all conditions, including day or night and adverse weather
+	situations  [@Moreira2013].
+	
+-  Effective processing of SAR 	data  depends on adequate statistical modeling of speckle and texture [@Argenti2013].
+	
+-  Speckle in SAR intensity data is a non-Gaussian, multiplicative noise.
+
+-   The	$\mathcal{G}^0_I$ distribution models both texture and speckle and includes
+	the Gamma law as the limiting case for fully-developed speckle (homogeneous areas).
+	
+
+	
+#### Motivation: Detecting Texture Variation in SAR Data
+  
+::: {layout-ncol=3  fig-subcaption=true}
+  
+  ![London SAR image.](./Figures/london_2000.png)
+  
+  ![Munich SAR image.](./Figures/munich_1024.png)
+  
+  ![San Francisco SAR image.](./Figures/SF_3300.png)
+  
+:::
+  
+ 
+  
+  Besides brightness, **roughness/texture** varies across land covers.
+  
+  Visual appearance helps, but it does not provide a statistically reliable decision.	
+  
+  We use entropy to detect departures from homogeneity, without relying on explicit model parameters.
+  	
+
+
+	
+
+
+
+####  Statistical Modeling of SAR Intensity
+<br>
+
+
+
+- **$\Gamma_{\text{SAR}}$**: suitable for **fully developed speckle** (homogeneous).  
+- **$\mathcal{G}^0_I$**: flexible model for **heterogeneous** or **textured** areas [@Frery1997].  
+
+
+<br>
+
+. . . 
+
+They are characterized by the probability
+density functions: 
+
+
+<br>
+
+<!-- Let $\mu>0$ (mean), $L\ge 1$ (looks), $\alpha<0$ (roughness). -->
+
+\begin{equation}
+f_{\Gamma_{\text{SAR}}}\bigl(z;L, \mu \bigr) 
+= \frac{L^L}{\Gamma(L)\,\mu^L} z^{L-1} 
+\exp \left(-\frac{Lz}{\mu}\right)
+\mathbf{1}_{\mathbb{R}_+}(z)
+\end{equation}
+
+and
+
+\begin{equation}
+f_{\mathcal{G}^0_I}\bigl(z; \mu, \alpha, L \bigr) 
+= \frac{L^L\,\Gamma(L-\alpha)}
+{\left[-\mu(\alpha+1)\right]^{\alpha} \Gamma(-\alpha)\,\Gamma(L)}
+ \frac{z^{L-1}}
+{\left[-\mu(\alpha+1)+Lz\right]^{L-\alpha}}
+ \mathbf{1}_{\mathbb{R}_+}(z),
+\end{equation}
+
+where $\mu > 0$ is the mean, $\alpha < 0$ measures the roughness, $L \geq 1$ is the number of looks.
+
+
+
+
+
+
+####  Statistical Modeling of SAR Intensity
+
+
+::: columns
+::: {.column width="45%"}
+<br><br>
+Frery et al. [-@Frery1997] proved that the $\Gamma_{\text{SAR}}$ model is a limiting
+case of the $\mathcal{G}^0_I$ distribution.
+
+In effect, for a given $\mu$ fixed,
+
+$$
+f_{\mathcal{G}^0_I}\big(z; \mu, \alpha, L\big)
+\longrightarrow 
+f_{\Gamma_{\text{SAR}}}(z;L, \mu) 
+$$
+
+when $\alpha\to-\infty$.
+
+:::
+
+::: {.column width="3%"}
+:::
+
+::: {.column width="52%"}
+
+```{r fig1, dev="svg", echo=FALSE, fig.width=11, fig.height=5.5}
+# 
+library(ggplot2)
+library(dplyr)
+library(latex2exp)
+
+# FUNCIONES
+dgamma_sar <- function(z, L, mu) {
+  dgamma(z, shape = L, rate = L / mu)
+}
+
+dGI0_mu <- function(z, alpha, mu, L) {
+  gamma <- -mu * (alpha + 1)
+  logf <- L * log(L) + lgamma(L - alpha) -
+    alpha * log(gamma) -
+    lgamma(-alpha) - lgamma(L) +
+    (L - 1) * log(z) -
+    (L - alpha) * log(gamma + L * z)
+  out <- exp(logf)
+  out[z <= 0] <- 0
+  out
+}
+
+x <- seq(0, 4, length.out = 600)
+
+df_plot <- bind_rows(
+  tibble(x = x, dens = dGI0_mu(x, -3, 1, 2), dist = "GI0(-3,1,2)"),
+  tibble(x = x, dens = dGI0_mu(x, -5, 1, 2), dist = "GI0(-5,1,2)"),
+   tibble(x = x, dens = dGI0_mu(x, -20, 1, 2), dist = "GI0(-20,1,2)"),
+  tibble(x = x, dens = dgamma_sar(x, 2, 1), dist = "Gamma SAR(2,2)")
+) %>% mutate(dist = factor(dist, levels = unique(dist)))
+
+colores <- c( "#66C2A5", "#8DA0CB", "#E78AC3", "#FC8D62")
+leglabels <- c(
+    TeX("${G}^0_I( 1, -3, 2)$"),
+  TeX("${G}^0_I( 1, -5, 2)$"),
+  TeX("${G}^0_I( 1, -20, 2)$"),
+  TeX("$\\Gamma_{SAR}(2, 1)$")
+)
+
+ggplot(df_plot, aes(x, dens, colour = dist)) +
+  geom_line(size = 2.1,  alpha=.9) +
+  scale_colour_manual(values = colores, labels = leglabels) +
+  labs(x = "z", y = "Density", colour = NULL) +
+  coord_cartesian(xlim = c(0, 4)) +
+  theme_minimal(base_family = "serif") +
+  theme(text = element_text(family = "serif"),
+        axis.text = element_text(size = 18),
+        axis.title = element_text(size = 20),
+        legend.text = element_text(size = 20),
+        legend.title = element_text(size = 20),
+        legend.position = "bottom",
+        panel.grid.minor = element_blank())
+
+
+ggplot(df_plot, aes(x, dens, colour = dist)) +
+  geom_line(size = 2.1,  alpha=.9) +
+  scale_colour_manual(values = colores, labels = leglabels) +
+  scale_y_log10() +
+  labs(x = "z", y = "Density", colour = NULL) +
+  coord_cartesian(xlim = c(0, 4)) +
+  theme_minimal(base_family = "serif") +
+  theme(text = element_text(family = "serif"),
+        axis.text = element_text(size = 18),
+        axis.title = element_text(size = 20),
+        legend.text = element_text(size = 20),
+        legend.title = element_text(size = 20),
+        legend.position = "bottom",
+        panel.grid.minor = element_blank())
+```
+
+:::
+
+:::
+  
+####  Problem Statement: Model Choice with Small Samples
+
+- In practice we do not know whether a region is **homogeneous** ($\Gamma_{\text{SAR}}$, fully developed speckle) or **heterogeneous** ($\mathcal{G}^0_I$, textured clutter). 
+- **Samples are small**, so classical estimation, especially the roughness parameter $\alpha$ of $\mathcal{G}^0_I$ is unstable (bias, flat likelihoods, non‑convergence).
+- We need a decision rule that **avoids fitting $\alpha$** and remains reliable with few observations.
+
+<br>
+
+. . .
+
+<span class="highlight">Entropy as a solution</span>
+<br>
+
+- Entropy quantifies the uncertainty (or dispersion) of the intensities, textured regions tend to show **higher entropy** than homogeneous ones.
+
+- **Strategy**: Estimate the entropy non-parametrically, and compare it with the theoretical Gamma entropy using the sample mean and the known value of $L$. This provides a test for detecting heterogeneity.
+
+
+
+
+####  Objectives
+
+<br>
+
+. . . 
+
+**General Objective**
+
+- Develop entropy-based framework for heterogeneity detection in SAR data
+
+<br>
+
+. . . 
+
+**Specific Objectives**:
+
+  - Derive closed-form entropies for $\Gamma_{\text{SAR}}$ and $\mathcal{G}^0_I$. 
+  - Develop bias-corrected entropy estimators.
+  - Formulate test statistics (Shannon, Rényi, Tsallis).
+  - Validate with simulated and real data
+
+ 
+## THEORETICAL FOUNDATIONS {background="#045D5D"}
+ 
+####  Entropy Measures
+
+
+<span style="font-size: 75%">
+The parametric representation of the <span class="highlight"> Shannon entropy </span>  for a system described by a continuous random variable is:
+$$
+  H(Z) =   -\mathbb{E}\bigl[ \ln f(z)\bigr]=-\int_{-\infty }^\infty f(z)\ln f(z)\, \mathrm{d}z,
+$$ 
+where $f(\cdot)$ is the pdf that characterizes the distribution of the real-valued random variable $Z$.
+</span>
+
+
+. . .
+
+<br>
+
+<div class="rounded-box">
+<span style="font-size: 75%">
+**Homogeneous case**. For the $\Gamma_{\mathrm{SAR}}$ distribution, we obtain:
+\begin{equation}
+\label{eq:gamma-sh2}
+H\bigl(\Gamma_{\mathrm{SAR}}(L, \mu)\bigr) = L - \ln L + \ln\Gamma(L) + (1 - L)\psi^{(0)}(L) + \ln \mu. 
+\end{equation}
+</span>
+</div>
+
+. . .
+
+
+<div class="rounded-box">
+<span style="font-size: 72%">
+**Textured case**. For $\mathcal{G}^0_I$ distribution, we adapt existing expressions reported by De A. Ferreira and Nascimento&nbsp;[-@Ferreira2020]:
+$$H\bigl(\mathcal{G}^0_I(\mu, \alpha, L)\bigr) =H\bigl(\Gamma_{\mathrm{SAR}}(L, \mu)\bigr) +\Bigl[ (L-\alpha) \psi^{(0)}(L-\alpha)-(1-\alpha)\psi^{(0)}(-\alpha)+\ln (-1-\alpha)-\ln\Gamma(L-\alpha)+\ln\Gamma(-\alpha)-L\Bigr]. $$
+</span>
+</div>
+
+. . .
+
+<div class="rounded-box">
+<span style="font-size: 75%">
+This last expression can be interpreted as: 
+\vspace{-25pt}
+$$
+H(\mathcal{G}^0_I)
+=
+\underbrace{H\bigl(\Gamma_{\mathrm{SAR}}\bigr)}_{\text{baseline entropy}}
+\hspace{1.8em} + \hspace{-1.0em}
+\underbrace{\Delta_\alpha}_{\text{excess entropy caused by texture}}\hspace{-4.0em}.
+$$
+</span>
+</div>
+
+
+
+####  Entropy Measures
+
+<span style="font-size: 65%">
+The <span class="highlight"> Rényi entropy </span>  of order $\lambda \in \mathbb R_+ \setminus \{1\}$ is defined as:
+\begin{equation}
+\label{E:entropy-R}
+R_\lambda(Z)  = \frac{1}{1-\lambda }\ln \Bigl[ \mathbb{E}\Bigl( f^{\lambda - 1}(Z)\Bigr) \Bigr] =\frac{1}{1 - \lambda} \ln \int_{-\infty}^{\infty} [f(z)]^\lambda \,\mathrm{d}z.
+\end{equation}
+As $\lambda \to 1$, $R_{\lambda}(Z)$ reduces to the Shannon entropy $H(Z)$.
+</span>
+
+. . .
+
+<div class="rounded-box">
+<span style="font-size: 62%">
+**Homogeneous case**. For the $\Gamma_{\mathrm{SAR}}$ distribution, we obtain:
+\begin{equation}
+  \label{eq-GammaSAR-R}
+    R_{\lambda}\bigl(\Gamma_{\mathrm{SAR}}(L,\mu)\bigr)
+  = \ln\mu - \ln L
++ \frac{1}{1-\lambda}
+\Bigl[
+-\lambda\,\ln\Gamma(L)
++ \ln\Gamma\bigl(\lambda(L-1)+1\bigr)
+- \bigl(\lambda(L-1)+1\bigr)\ln\lambda
+\Bigr].
+\end{equation}
+</span>
+</div>
+
+. . .
+
+::: {.callout-important appearance="minimal"}
+<span style="font-size: 84%">
+**Textured case**. For $\mathcal{G}^0_I$ distribution, we obtain: 
+\begin{equation}
+\label{eq-HGI0-R}
+\begin{aligned}
+R_{\lambda}\bigl(\mathcal{G}^0_I(\mu, \alpha, L)\bigr)
+=R_{\lambda}\bigl(\Gamma_{\mathrm{SAR}}(L,\mu)\bigr)
+  +\ln(-1-\alpha)+\frac{1}{1-\lambda}\bigl[
+    \lambda\bigl(\ln\Gamma(L-\alpha)-\ln\Gamma(-\alpha)\bigr)
+    +\ln\Gamma\bigl(\lambda(-\alpha+1)-1\bigr) -\ln\Gamma\bigl(\lambda(L-\alpha)\bigr)
+    +\bigl(\lambda(L-1)+1\bigr)\ln\lambda
+  \bigr].
+\end{aligned}
+\end{equation}
+</span>
+:::
+
+. . .
+
+<div class="rounded-box">
+<span style="font-size: 70%">
+This last expression can be interpreted as: 
+\vspace{-25pt}
+\begin{equation*}
+R_\lambda(\mathcal{G}^0_I)
+=
+\underbrace{R_\lambda \bigl(\Gamma_{\mathrm{SAR}}\bigr)}_{\text{baseline entropy}}
+\hspace{1.8em} + \hspace{-1.0em}
+\underbrace{\Delta^R_\alpha}_{\text{excess entropy caused by texture}}\hspace{-4.0em}.
+\end{equation*}
+</span>
+</div>
+
+####  Entropy Measures
+
+<span style="font-size: 65%">
+The <span class="highlight"> Tsallis entropy </span>  of order $\lambda \in \mathbb R_+ \setminus \{1\}$ is defined as:
+\begin{equation}
+\label{eq:tsallis}
+T_\lambda(Z) = \frac{1}{\lambda - 1} \mathbb{E} \Bigl[ 1 - (f(Z))^{\lambda - 1} \Bigr]
+= \frac{1}{\lambda - 1} \Bigl[ 1 - \int_{-\infty}^{\infty} \bigl(f(z)\bigr)^{\lambda} \,\mathrm{d}z \Bigr]. 
+\end{equation}
+In the limit $\lambda\to1$,
+  $T_\lambda(Z)\to H(Z)$.
+</span>
+
+. . .
+
+<div class="rounded-box">
+<span style="font-size: 62%">
+**Homogeneous case**. For the $\Gamma_{\mathrm{SAR}}$ distribution, we obtain:
+\begin{equation}
+\label{eq:gammasar-Tsallis}
+\begin{aligned}
+T_\lambda\bigl(\Gamma_{\mathrm{SAR}}(L,\mu)\bigr)=
+\frac{1}{\lambda-1}\Bigl\{1-
+\exp\Bigl[
+(1-\lambda)\ln\mu
++(\lambda-1)\ln L
++\ln\Gamma\bigl(\lambda(L-1)+1\bigr)
+-\lambda\ln\Gamma(L)
+-(\lambda(L-1)+1)\ln\lambda
+\Bigr]\Bigr\}.
+\end{aligned}
+\end{equation}
+
+</span>
+</div>
+
+. . .
+
+::: {.callout-important appearance="minimal"}
+<span style="font-size: 84%">
+**Textured case**. For $\mathcal{G}^0_I$ distribution, we obtain: 
+\begin{equation}
+\label{eq:GI0-Tsallis}
+\begin{aligned}
+  T_\lambda\bigl(\mathcal{G}^0_I(\mu,\alpha,L)\bigr) = T_\lambda\bigl(\Gamma_{\mathrm{SAR}}(L,\mu)\bigr)\;+\;\frac{1}{\lambda-1}\,
+  \exp\Bigl[
+  (1-\lambda)\ln\mu
+  +(\lambda-1)\ln L
+  +\ln\Gamma\bigl(\lambda(L-1)+1\bigr)
+  -\lambda\ln\Gamma(L)
+  \Bigr] 
+  {}\Bigl\{1-
+  \exp\Bigl[
+  (1-\lambda)\ln(-\alpha-1)\\
+  +\lambda\ln\Gamma(L-\alpha)
+  -\lambda\ln\Gamma(-\alpha) 
+  +\ln\Gamma\bigl(\lambda(1-\alpha)-1\bigr)
+  -\ln\Gamma\bigl(\lambda(L-\alpha)\bigr)
+  \Bigr]\Bigr\}.
+\end{aligned}
+\end{equation}
+</span>
+:::
+
+. . .
+
+<div class="rounded-box">
+<span style="font-size: 70%">
+This last expression can be interpreted as: 
+\vspace{-25pt}
+\begin{equation*}
+  T_\lambda(\mathcal{G}^0_I)
+  =
+  \underbrace{T_\lambda \bigl(\Gamma_{\mathrm{SAR}}\bigr)}_{\text{baseline entropy}}
+  \hspace{1.8em} + \hspace{-1.0em}
+  \underbrace{\Delta^T_\alpha}_{\text{excess entropy caused by texture}}\hspace{-4.0em}.
+\end{equation*}
+</span>
+</div>
+
+
+
+
+ 
+
+
+
+####   Entropy Decomposition
+
+
+
+
+
+![Diagram of entropy decomposition.](./Figures/descomp.png){.center width=70%}
+
+
+
+#### Convergence Behavior: Shannon entropy
+
+
+
+```{r figshannon, dev="svg", echo=FALSE, message=FALSE, warning=FALSE,  out.width="98%", fig.cap="Shannon entropy $H(\\mathcal{G}^0_I)$ converges to $H(\\Gamma_{\\mathrm{SAR}})$ as $\\alpha$ decreases.", fig.width=8, fig.height=3.9}
+
+
+
+entropy_gamma_sar <- function(L, mu) {
+  L - log(L) + lgamma(L) + (1 - L) * digamma(L) + log(mu)
+}
+
+
+entropy_gI0 <- function(mu, alpha, L) {
+  term1 <- L - log(L) + lgamma(L) + (1 - L) * digamma(L) + log(mu) 
+  term2 <- -L - lgamma(L - alpha) + (L - alpha) * digamma(L - alpha) - 
+           (1 - alpha) * digamma(-alpha) + log(-1 - alpha) + lgamma(-alpha)
+  entropy <- term1 + term2
+  return(entropy)
+}
+
+
+plot_shannon <- function(L) {
+  mu <- seq(0.1, 10, length.out = 500)
+  alphas <- c(-2, -6, -20, -1000)
+  alpha_labels <- c(expression(alpha == -2), expression(alpha == -6), expression(alpha == -20), expression(alpha == -1000))
+
+  muEntropy <- data.frame()
+  for (alpha in alphas) {
+    entropies_GI0 <- entropy_gI0(mu, alpha, L)
+    muEntropy <- rbind(muEntropy, data.frame(mu = mu, Entropy = entropies_GI0, alpha = as.factor(alpha)))
+  }
+
+  muEntropy.molten <- melt(muEntropy, id.vars = c("mu", "alpha"))
+  entropies_gamma <- entropy_gamma_sar(L, mu)
+  Entropy_gamma <- data.frame(mu, Entropy_Gamma = entropies_gamma)
+
+  ggplot() +
+    geom_line(data = Entropy_gamma, aes(x = mu, y = Entropy_Gamma), color = "black", linewidth = 1.5) +
+    geom_line(data = muEntropy.molten, aes(x = mu, y = value, color = alpha), linetype = "longdash", linewidth = 1.1, alpha=.7) + #linewidth = 2, alpha=.7
+    scale_color_manual(values = brewer.pal(7, "Dark2")[1:5], labels = alpha_labels) +
+    #scale_color_manual(values = pal_npg()(4), labels = alpha_labels) +
+    labs(color = "Roughness", x = expression(mu), y = "Shannon Entropy") +
+    annotate("text",
+           x = max(mu) + 0.4,
+           y = max(Entropy_gamma$Entropy_Gamma) - 0.3,
+           label = TeX("${italic(H)}(\\Gamma_{\\tiny{SAR}})$"),
+           hjust = 1, vjust = 1, size = 3.0) +
+    theme_minimal(base_family = "serif") +
+    theme(
+      legend.position = "bottom",
+      plot.title = element_text(hjust = 0.5, size = 10),
+      panel.grid.minor = element_blank()
+    ) +
+    coord_cartesian(xlim = c(0, 10), ylim = c(-1, 6)) +
+    ggtitle(bquote(L == .(L)))
+}
+
+# Graficar para dos condiciones
+p1 <- plot_shannon(5)
+p2 <- plot_shannon(18)
+
+(p1 | p2) + plot_layout(guides = "collect") & theme(legend.position = "bottom")
+
+```
+
+#### Convergence Behavior: Rényi entropy
+
+```{r figrenyi, dev="svg", echo=FALSE, message=FALSE, warning=FALSE,  out.width="98%", fig.cap="Rényi entropy $R_{\\lambda}(\\mathcal{G}^0_I)$ converges to $R_{\\lambda}(\\Gamma_{\\mathrm{SAR}})$ as $\\alpha$ decreases.", fig.width=8, fig.height=3.9}
+# fig.fullwidth = TRUE, out.width="95%"
+
+
+
+entropy_renyi_gamma_sar <- function(L, mu, lambda) {
+  (lambda * lgamma(L) - lgamma(lambda * (L - 1) + 1) + 
+     (lambda * (L - 1) + 1) * log(lambda)) / (lambda - 1) + log(mu / L)
+}
+
+entropy_GI0_renyi <- function(alpha, mu, L, lambda) {
+  gamma <- -mu * (alpha + 1)
+  a <- lambda * (L - 1) + 1
+  b <- lambda * (-alpha + 1) - 1
+  ab_sum <- lambda * (L - alpha)
+
+  term1 <- log(gamma / L)
+  term2 <- lambda * (lgamma(L - alpha) - lgamma(-alpha) - lgamma(L))
+  term3 <- lgamma(a)
+  term4 <- lgamma(b)
+  term5 <- lgamma(ab_sum)
+
+  entropy <- term1 + (term2 + term3 + term4 - term5) / (1 - lambda)
+  return(entropy)
+}
+
+plot_renyi <- function(L, lambda) {
+  mu <- seq(0.1, 10, length.out = 500)
+  alphas <- c(-2, -6, -20, -1000)
+  alpha_labels <- c(expression(alpha == -2), expression(alpha == -6), expression(alpha == -20), expression(alpha == -1000))
+  
+  muEntropy <- data.frame()
+  for (alpha in alphas) {
+    entropies_GI0 <- entropy_GI0_renyi(alpha, mu, L, lambda)
+    muEntropy <- rbind(muEntropy, data.frame(mu = mu, Entropy = entropies_GI0, alpha = as.factor(alpha)))
+  }
+  
+  muEntropy.molten <- melt(muEntropy, id.vars = c("mu", "alpha"))
+  entropies_gamma <- entropy_renyi_gamma_sar(L, mu, lambda)
+  Entropy_gamma <- data.frame(mu, Entropy_Gamma = entropies_gamma)
+
+ggplot() +
+  geom_line(data = Entropy_gamma, aes(x = mu, y = Entropy_Gamma), color = "black", linewidth = 1.5) +
+  geom_line(data = muEntropy.molten, aes(x = mu, y = value, color = alpha), linetype = "longdash", linewidth = 1.1, alpha=.7) +
+  scale_color_manual(values = pal_jama()(7)[2:5], labels = alpha_labels) +
+  labs(color = "Roughness", x = expression(mu), y = "Rényi Entropy") +
+  annotate("text",
+           x = max(mu) + 0.4,
+           y = max(Entropy_gamma$Entropy_Gamma) - 0.3,
+           label = TeX("${italic(R)}_{\\lambda}(\\Gamma_{\\tiny{SAR}})$"),
+           hjust = 1, vjust = 1, size = 3.1) +
+  theme_minimal(base_family = "serif") +
+  theme(
+    legend.position = "bottom",
+    plot.title = element_text(hjust = 0.5, size = 10),
+    panel.grid.minor = element_blank()
+  ) +
+  coord_cartesian(xlim = c(0, 10), ylim = c(-1, 6)) +
+  ggtitle(bquote(L == .(L) ~ ", " ~ lambda == .(lambda)))
+}
+
+p1 <- plot_renyi(5, 0.6)
+p2 <- plot_renyi(18, 0.9)
+
+
+(p1 | p2) + plot_layout(guides = "collect") & theme(legend.position = "bottom")
+```
+
+
+#### Convergence Behavior: Tsallis entropy
+
+```{r figtsallis, dev="svg", echo=FALSE, message=FALSE, warning=FALSE,  out.width="98%", fig.cap="Tsallis entropy $T_{\\lambda}(\\mathcal{G}^0_I)$ converges to $T_{\\lambda}(\\Gamma_{\\mathrm{SAR}})$ as $\\alpha$ decreases.", fig.width=8, fig.height=3.9}
+# fig.fullwidth = TRUE, out.width="95%"
+
+
+
+# Entropías de Tsallis (Gamma SAR y GI0)
+tsallis_gammasar_log <- function(mu, L, lambda) {
+  (1 - exp((1 - lambda)*log(mu) +
+             (lambda - 1)*log(L) +
+             lgamma(lambda*(L - 1) + 1) -
+             lambda*lgamma(L) -
+             (lambda*(L - 1) + 1)*log(lambda))) /
+    (lambda - 1)
+}
+
+tsallis_gi0 <- function(alpha, mu, L, lambda) {
+  (1 - exp((1 - lambda)*log(mu) +
+             (lambda - 1)*log(L) +
+             (1 - lambda)*log(-alpha - 1) +
+             lgamma(lambda*(L - 1) + 1) -
+             lambda*lgamma(L) +
+             lambda*(lgamma(L - alpha) - lgamma(-alpha)) +
+             lgamma(lambda*(1 - alpha) - 1) -
+             lgamma(lambda*(L - alpha)))) / (lambda - 1)
+}
+
+plot_tsallis <- function(L, lambda) {
+  mu <- seq(0.1, 10, length.out = 500)
+  alphas <- c(-2, -6, -20, -1000)
+  alpha_labels <- c(expression(alpha == -2), expression(alpha == -6), expression(alpha == -20), expression(alpha == -1000))
+
+  muEntropy <- data.frame()
+  for (alpha in alphas) {
+    entropies_GI0 <- tsallis_gi0(alpha, mu, L, lambda)
+    muEntropy <- rbind(muEntropy, data.frame(mu = mu, Entropy = entropies_GI0, alpha = as.factor(alpha)))
+  }
+
+  muEntropy.molten <- melt(muEntropy, id.vars = c("mu", "alpha"))
+  entropies_gamma <- tsallis_gammasar_log(mu, L, lambda)
+  Entropy_gamma <- data.frame(mu, Entropy_Gamma = entropies_gamma)
+
+  ggplot() +
+    geom_line(data = Entropy_gamma, aes(x = mu, y = Entropy_Gamma), color = "black", linewidth = 1.5) +
+    geom_line(data = muEntropy.molten, aes(x = mu, y = value, color = alpha), linetype = "longdash", linewidth = 1.1, alpha=.7) +
+    scale_color_manual(values = pal_lancet()(4), labels = alpha_labels) +
+    labs(color = "Roughness", x = expression(mu), y = "Tsallis Entropy") +
+    annotate("text",
+             x = max(mu) + 0.5,
+             y = max(Entropy_gamma$Entropy_Gamma) - 0.4,
+             label = TeX("${italic(T)}_{\\lambda}(\\Gamma_{\\tiny{SAR}})$"),
+             hjust = 1, vjust = 1, size = 3.1) +
+    theme_minimal(base_family = "serif") +
+    theme(
+      legend.position = "bottom",
+      plot.title = element_text(hjust = 0.5, size = 10),
+      panel.grid.minor = element_blank()
+    ) +
+    coord_cartesian(xlim = c(0, 10), ylim = c(-1, 6)) +
+    ggtitle(bquote(L == .(L) ~ ", " ~ lambda == .(lambda)))
+}
+
+p1 <- plot_tsallis(5, 0.6)
+p2 <- plot_tsallis(18, 0.9)
+(p1 | p2) + plot_layout(guides = "collect") & theme(legend.position = "bottom")
+```
+
+#### Nonparametric Estimation 
+
+<span class="highlight">Why Nonparametric Estimation?</span>
+
+- We avoid fitting a parametric model: no assumption on $f(z)$.
+- Instead, we estimate entropy **directly from data** using order statistics.
+- This approach is consistent and suitable to small samples.
+- We cover three functionals: Shannon, Rényi, and Tsallis.
+- <span class="highlight">Strategy</span>:  Given a random sample $\boldsymbol{Z} = (Z_1, Z_2, \dots, Z_n)$
+  - Estimate the cumulative distribution function $F$ by the **empirical CDF**.
+  - Estimate the inverse function $F^{-1}$ (quantile function) using **order statistics** $Z_{(1)} \le \cdots \le Z_{(n)}$.
+  - Approximate the derivative $Q'(p) = \frac{d}{dp}F^{-1}(p)$ using **finite differences**, called **spacings**.
+  - Approximate the entropy integral with a **summation** over estimated quantile derivatives.
+  
+. . .
+  
+::: {.callout-important appearance="minimal"}
+<span style="font-size: 120%">
+ This leads to **spacing-based entropy estimators**, avoiding explicit density estimation.
+</span>
+:::
+
+
+  
+
+
+#### Nonparametric Entropy Estimators
+<span style="font-size: 70%">
+**Shannon**: Al‑Omari [-@IbrahimAlOmari2014]
+$$
+\hat{H}_{\mathrm{AO}}(\boldsymbol Z)=
+\frac{1}{n}\sum_{i=1}^{n}
+\ln\!\left[
+\frac{n}{\omega_i\,m}\,
+\bigl(Z_{(i+m)}-Z_{(i-m)}\bigr)
+\right], \quad  \quad \quad \quad 
+\omega_i=
+\begin{cases}
+\dfrac{3}{2}, & 1\le i\le m,\\[4pt]
+2, & m+1\le i\le n-m,\\[4pt]
+\dfrac{3}{2}, & n-m+1\le i\le n.
+\end{cases}
+$$
+**Rényi**: Al‑Labadi et al. [-@AlLabadi2024]  
+$$
+\hat{R}_\lambda(\boldsymbol Z)=
+\frac{1}{1-\lambda}\,
+\ln \left[
+\frac{1}{n}\sum_{i=1}^{n}
+\left(
+\frac{c_i\,m/n}{\,Z_{(i+m)}-Z_{(i-m)}\,}
+\right)^{\lambda-1}
+\right], \quad  \quad \quad \quad c_i=
+\begin{cases}
+\dfrac{m+i-1}{m}, & 1\le i\le m,\\[6pt]
+2, & m+1\le i\le n-m,\\[6pt]
+\dfrac{n+m-i}{m}, & n-m+1\le i\le n.
+\end{cases}
+$$
+**Tsallis**  
+$$\hat{\textit{T}_\lambda}(\boldsymbol{Z}) = 
+\frac{1}{\lambda-1}
+\left[
+1-\frac{1}{n}\sum_{i=1}^{n}
+\left(
+\frac{c_i\,m/n}{\,Z_{(i+m)}-Z_{(i-m)}\,}
+\right)^{\lambda-1}
+\right], \quad  \quad \quad \quad c_i=
+\begin{cases}
+\dfrac{m+i-1}{m}, & 1\le i\le m,\\[6pt]
+2, & m+1\le i\le n-m,\\[6pt]
+\dfrac{n+m-i}{m}, & n-m+1\le i\le n.
+\end{cases}
+$$
+$m$ is the spacing width (typical choice: $m=[ \sqrt{n}+0.5 ]$).
+</span>
+
+
+
+
+
+## METHODOLOGY  {background="#045D5D"}
+
+
+
+#### Bootstrap Bias-Correction
+
+::::: {.columns}
+
+:::: {.column width="50%"}
+
+
+ <br>
+
+
+Spacing-based entropy estimators are biased with small $n$. 
+
+  
+  $$\text{Bias}(\widehat\theta)=\mathbb E[\widehat\theta]-\theta \neq 0.$$
+For any entropy estimator $\widehat{\theta} \in \{\hat H_{\text{AO}}, \hat R_\lambda,\hat{\textit{T}_\lambda}\}$.
+
+
+<br>
+
+To reduce  bias, we apply a **bootstrap** correction method:
+
+$$\widetilde\theta
+    = 2\,\widehat\theta(\boldsymbol Z) - \frac{1}{B}\sum_{b=1}^{B} \widehat\theta\!\big(\boldsymbol Z^{(b)}\big).$$
+
+
+
+
+
+
+- Notation of bootstrap-improved estimators: $\tilde H_{\text{AO}},\ \tilde R_\lambda,\ \tilde{\textit{T}_\lambda}$.
+
+::::
+
+:::: {.column width="50%"}
+
+
+<br>
+
+::: {.r-stack}
+
+::: {.fragment .fade-in-then-out}
+
+```{r figbias_mse_shan, dev="svg", echo=FALSE, message=FALSE, warning=FALSE,  out.width="98%",   fig.cap="Bias and MSE of the Shannon entropy estimators for $\\Gamma_{\\text{SAR}}(5,1)$, $B=100$.", fig.width=9, fig.height=6}
+
+generate_plot_shannon <- function(results_df, selected_estimators, ncol = 1, nrow = 1) {
+  #library(ggplot2)
+  #library(patchwork)
+  
+  df_filtered <- results_df[results_df$Estimator %in% names(selected_estimators), ]
+  df_filtered$Estimator <- selected_estimators[df_filtered$Estimator]
+  df_filtered$Estimator <- as.character(df_filtered$Estimator)
+  
+  plot_bias <- ggplot(df_filtered, aes(x = n, y = Bias, color = Estimator)) +
+    geom_hline(yintercept = 0, color = "gray50", linetype = "dashed", linewidth = 0.5) +
+    geom_point(size = 3.0) +
+    geom_line(linewidth = 1.5, alpha = 0.8) +
+    labs(y = "Bias", x = expression(italic(n))) +
+    scale_x_continuous(breaks = unique(df_filtered$n), minor_breaks = NULL) +
+    scale_y_continuous(minor_breaks = NULL) +
+    scale_color_manual(values = c("#2166ac", "#b2182b"), labels = TeX(df_filtered$Estimator)) +
+    theme_minimal() +
+    theme(text = element_text(family = "serif"),
+          axis.text = element_text(size = 12),
+          axis.title = element_text(size = 14),
+          legend.position = "bottom",
+          legend.text = element_text(size = 14)) +
+    guides(color = guide_legend(nrow = 1))
+  
+  plot_mse <- ggplot(df_filtered, aes(x = n, y = MSE, color = Estimator)) +
+    geom_hline(yintercept = 0, color = "gray50", linetype = "dashed", linewidth = 0.5) +
+    geom_point(size = 3.0) +
+    geom_line(linewidth = 1.5, alpha = 0.8) +
+    labs(y = "MSE", x = expression(italic(n))) +
+    scale_x_continuous(breaks = unique(df_filtered$n), minor_breaks = NULL) +
+    scale_y_continuous(minor_breaks = NULL) +
+    scale_color_manual(values = c( "#2166ac", "#b2182b"), labels = TeX(df_filtered$Estimator)) +
+    theme_minimal() +
+    theme(text = element_text(family = "serif"),
+          axis.text = element_text(size = 12),
+          axis.title = element_text(size = 14),
+          legend.position = "bottom",
+          legend.text = element_text(size = 14)) +
+    guides(color = guide_legend(nrow = 1))
+  
+ 
+  combined_plot_all <- (plot_bias / plot_mse) + plot_layout(guides = "collect")
+  return(combined_plot_all)
+}
+
+
+load("./Data/results_shannon_jj.Rdata")
+
+estimators_to_plot_shannon <- c("Shannon Estimator", "Shannon Estimator Bootstrap")
+
+latex_estimator_names_shannon <- c(
+  "Shannon Estimator" = expression("$\\widehat{italic(H)}_{AO}$"),
+  "Shannon Estimator Bootstrap" = expression("$\\widetilde{italic(H)}_{AO}$")
+)
+
+selected_estimators_latex_shannon <- latex_estimator_names_shannon[estimators_to_plot_shannon]
+
+combined_plot_shannon <- generate_plot_shannon(
+  results_shannon,
+  selected_estimators_latex_shannon,
+  ncol = 1,
+  nrow = 1
+)
+
+print(combined_plot_shannon)
+
+```
+
+:::
+
+::: {.fragment .fade-in-then-out}
+```{r figbias_mse_rm1,  dev="svg",  echo=FALSE, message=FALSE, warning=FALSE,  out.width="98%",   fig.cap="Bias and MSE of the Rényi entropy estimators for $\\Gamma_{\\text{SAR}}(5,1)$,  $B=100$.", fig.width=13, fig.height=9}
+
+generate_plot_renyi <- function(results_df, alpha_values, selected_estimators, ncol = 1, nrow = 6) {
+ # library(ggplot2)
+ # library(patchwork)
+  
+  plot_list <- list()
+  
+  
+  #library(ggplot2)
+ # library(patchwork)
+  
+  for (alpha_val in alpha_values) {
+    df <- results_df[results_df$Alpha == alpha_val, ]
+    df_filtered <- df[df$Estimator %in% names(selected_estimators), ]
+    df_filtered$Estimator <- selected_estimators[df_filtered$Estimator]
+    df_filtered$Estimator <- as.character(df_filtered$Estimator)
+    
+    plot_bias <- ggplot(df_filtered, aes(x = n, y = Bias, color = Estimator)) +
+      geom_hline(yintercept = 0, color = "gray50", linetype = "dashed", linewidth = 0.5) +
+      geom_point(size = 3.2) +  # Aumenta el tamaño de los puntos
+      geom_line(linetype = "solid", linewidth = 2, alpha = 0.7) +  # Aumenta el grosor de la línea
+      labs(y = "Bias", x = expression(italic(n))) +
+      #scale_x_continuous(breaks = unique(df_filtered$n)) +
+      scale_x_continuous(breaks = unique(df_filtered$n), minor_breaks = NULL)+
+      scale_y_continuous(minor_breaks = NULL)+
+      scale_color_manual(values = c("blue", "red"), labels = TeX(df_filtered$Estimator)) +
+      ggtitle(bquote(lambda == .(alpha_val))) +
+      theme_minimal() +
+      theme(text = element_text(family = "serif"),
+            axis.text = element_text(size = 16),
+            axis.title = element_text(size = 18),
+            plot.title = element_text(size = 18,  hjust = 0),  # Aumenta el tamaño del título de lambda
+            legend.position = "bottom",
+            legend.box = "horizontal",
+            legend.text = element_text(size = 18),  # Aumenta el tamaño del texto de la leyenda
+            legend.title = element_text(size = 18)) +  # Aumenta el tamaño del título de la leyenda
+      guides(color = guide_legend(nrow = 1))
+    
+    plot_mse <- ggplot(df_filtered, aes(x = n, y = MSE, color = Estimator)) +
+      geom_hline(yintercept = 0, color = "gray50", linetype = "dashed", linewidth = 0.5) +
+      geom_point(size = 3.2) +
+      geom_line(linetype = "solid", linewidth = 2, alpha = 0.7) +
+      labs(y = "MSE", x = expression(italic(n))) +
+      #scale_x_continuous(breaks = unique(df_filtered$n)) +
+      scale_x_continuous(breaks = unique(df_filtered$n), minor_breaks = NULL)+
+      scale_y_continuous(minor_breaks = NULL)+
+      scale_color_manual(values = c("blue", "red"), labels = TeX(df_filtered$Estimator)) +
+      theme_minimal() +
+      theme(text = element_text(family = "serif"),
+            axis.text = element_text(size = 16),
+            axis.title = element_text(size = 18),
+            legend.position = "bottom",
+            legend.box = "horizontal",
+            legend.text = element_text(size = 18),
+            legend.title = element_text(size = 18)) +
+      guides(color = guide_legend(nrow = 1))
+    
+    # 
+    combined_plot <- plot_bias / plot_mse
+    
+    plot_list[[as.character(alpha_val)]] <- combined_plot
+  }
+  
+  #
+  combined_plot_all <- wrap_plots(plot_list, ncol = ncol, nrow = nrow) +
+    plot_layout(guides = "collect")
+  
+  
+  return(combined_plot_all)
+}
+theme_set(theme_minimal() +
+            theme(text = element_text(family = "serif"),
+                  legend.position = "bottom"))
+#fig.show="hide",
+# eval=FALSE,  #
+#  out.width="80%",
+load("./Data/results_renyi_m1.Rdata")
+
+alpha_values <- 0.9
+estimators_to_plot <- c("Renyi Estimator", "Renyi Estimator Bootstrap")
+latex_estimator_names <- c("Renyi Estimator" = expression("$\\widehat{italic(R)}_{\\lambda}$"),#
+                           "Renyi Estimator Bootstrap" = expression("$\\widetilde{italic(R)}_{\\lambda}$"))
+selected_estimators_latex <- latex_estimator_names[estimators_to_plot]
+
+
+combined_plot_renyi <- generate_plot_renyi(results, alpha_values, selected_estimators_latex, ncol = 1, nrow = 1)
+
+
+print(combined_plot_renyi)
+
+
+```
+
+:::
+
+::: {.fragment .fade-in-then-out}
+
+```{r figbias_mse_Tsallis, dev="svg",  echo=FALSE, message=FALSE, warning=FALSE,  out.width="98%",   fig.cap="Bias and MSE of the Tsallis entropy estimators for $\\Gamma_{\\text{SAR}}(5,1)$,  $B=100$.", fig.width=9, fig.height=7}
+
+generate_plot_tsallisn <- function(results_df, lambda_values, selected_estimators, ncol = 1, nrow = 6) {
+  #library(ggplot2)
+  #library(patchwork)
+  
+  plot_list <- list()
+  
+  for (lambda_val in lambda_values) {
+    df <- results_df[results_df$Lambda == lambda_val, ]
+    df_filtered <- df[df$Estimator %in% names(selected_estimators), ]
+    df_filtered$Estimator <- selected_estimators[df_filtered$Estimator]
+    df_filtered$Estimator <- as.character(df_filtered$Estimator)
+    
+    plot_bias <- ggplot(df_filtered, aes(x = n, y = Bias, color = Estimator)) +
+      geom_hline(yintercept = 0, color = "gray50", linetype = "dashed", linewidth = 0.5) +
+      geom_point(size = 3.0) +
+      geom_line(linetype = "solid", linewidth = 1.7, alpha = 0.8) +
+      labs(y = "Bias", x = expression(italic(n))) +
+      scale_x_continuous(breaks = unique(df_filtered$n), minor_breaks = NULL) +
+      scale_y_continuous(minor_breaks = NULL) +
+      scale_color_manual(values = c("#7570b3", "#e7298a"), labels = TeX(df_filtered$Estimator)) +
+      ggtitle(bquote(lambda == .(lambda_val))) +
+      theme_minimal() +
+      theme(text = element_text(family = "serif"),
+            axis.text = element_text(size = 12),
+            axis.title = element_text(size = 14),
+            plot.title = element_text(size = 14, hjust = 0),
+            legend.position = "bottom",
+            legend.box = "horizontal",
+            legend.text = element_text(size = 14),
+            legend.title = element_text(size = 14)) +
+      guides(color = guide_legend(nrow = 1))
+    
+    plot_mse <- ggplot(df_filtered, aes(x = n, y = MSE, color = Estimator)) +
+      geom_hline(yintercept = 0, color = "gray50", linetype = "dashed", linewidth = 0.5) +
+      geom_point(size = 3.0) +
+      geom_line(linetype = "solid", linewidth = 1.7, alpha = 0.8) +
+      labs(y = "MSE", x = expression(italic(n))) +
+      scale_x_continuous(breaks = unique(df_filtered$n), minor_breaks = NULL) +
+      scale_y_continuous(minor_breaks = NULL) +
+      scale_color_manual(values = c("#7570b3", "#e7298a"), labels = TeX(df_filtered$Estimator)) +
+      theme_minimal() +
+      theme(text = element_text(family = "serif"),
+            axis.text = element_text(size = 12),
+            axis.title = element_text(size = 14),
+            legend.position = "bottom",
+            legend.box = "horizontal",
+            legend.text = element_text(size = 14),
+            legend.title = element_text(size = 14)) +
+      guides(color = guide_legend(nrow = 1))
+    
+    combined_plot <- plot_bias / plot_mse
+    plot_list[[as.character(lambda_val)]] <- combined_plot
+  }
+  
+  combined_plot_all <- wrap_plots(plot_list, ncol = ncol, nrow = nrow) +
+    plot_layout(guides = "collect")
+  
+  return(combined_plot_all)
+}
+
+theme_set(theme_minimal() +
+            theme(text = element_text(family = "serif"),
+                  legend.position = "bottom"))
+
+# 
+load("./Data/results_tsallis_jj.Rdata")
+
+lambda_values <- 0.85
+estimators_to_plot_tsallis <- c("Tsallis Estimator", "Tsallis Estimator Bootstrap")
+
+# 
+latex_estimator_names_tsallis <- c(
+  "Tsallis Estimator" = expression("$\\widehat{italic(T)}_{\\lambda}$"),
+  "Tsallis Estimator Bootstrap" = expression("$\\widetilde{italic(T)}_{\\lambda}$")
+)
+
+selected_estimators_latex_tsallis <- latex_estimator_names_tsallis[estimators_to_plot_tsallis]
+
+# Graficar
+combined_plot_tsallis <- generate_plot_tsallisn(
+  results_tsallis,
+  lambda_values,
+  selected_estimators_latex_tsallis,
+  ncol = 1,
+  nrow = 1
+)
+
+print(combined_plot_tsallis)
+
+
+
+```
+
+
+:::
+
+
+:::
+
+::::
+
+:::::
+
+
+
+#### Hypothesis Testing
+
+<br>
+
+
+We aim to determine whether a local region in a SAR intensity image is statistically <br>
+homogeneous or heterogeneous.
+
+<br>
+
+Formally, the hypothesis test is:
+\begin{equation}\label{eq:hypothesis_test}
+\begin{cases}
+\mathcal{H}_0: \mathbb{E}[\widetilde{\theta}] = \theta(\Gamma_{\text{SAR}}) & \text{(homogeneous region)}, \\[6pt]
+\mathcal{H}_1: \mathbb{E}[\widetilde{\theta}] = \theta(\mathcal{G}^0_I) & \text{(heterogeneous region)},
+\end{cases}
+\end{equation}
+
+<br>
+
+. . . 
+
+where $\theta$ denotes a generic entropy function (Shannon entropy $H$, Rényi entropy $R_\lambda$, or <br>
+ Tsallis entropy $T_\lambda$), and $\widetilde{\theta}$ is the corresponding nonparametric estimator ($\tilde{H}_{\mathrm{AO}}$, $\tilde{R}_\lambda$ and $\tilde{\textit{T}_\lambda}$ ).
+
+
+#### The Proposed Test Statistics
+
+
+<div class="rounded-box">
+<span style="font-size: 65%">
+**Shannon**. 
+\vspace{-15pt}
+\begin{equation}
+\label{eq-test-sh}
+S_{\tilde{H}_{\mathrm{AO}}}(\boldsymbol{Z}; L) = \tilde{H}_{\mathrm{AO}} - \left[ L - \ln L + \ln\Gamma(L) + (1 - L)\psi^{(0)}(L) + \ln\widehat{\mu} \right].
+\end{equation}
+$$
+S_{\tilde{H}_{\mathrm{AO}}} = 
+\underbrace{\tilde{H}_{\mathrm{AO}}}_{\text{estimated}} - 
+\underbrace{H(\Gamma_{\text{SAR}})}_{\text{expected under } \mathcal{H}_0}\hspace{-0.9em}.
+$$
+</span>
+</div>
+
+. . .
+
+<div class="rounded-box">
+<span style="font-size: 65%">
+**Rényi**. 
+\vspace{-15pt}
+\begin{equation}
+\label{eq-test-renyi}
+S_{\tilde{R}_{\lambda}}(\boldsymbol{Z}; L) = \tilde{R}_{\lambda} - \left\{ \ln \widehat{\mu} - \ln L + \frac{1}{1-\lambda}
+\left[ -\lambda \ln\Gamma(L) + \ln\Gamma\bigl(\lambda(L-1)+1\bigr) - \bigl(\lambda(L-1)+1\bigr)\ln\lambda \right] \right\}.
+\end{equation}
+$$
+S_{\tilde{R}_\lambda} = 
+\underbrace{\tilde{R}_\lambda}_{\text{estimated}} -
+\underbrace{R_\lambda(\Gamma_{\text{SAR}})}_{\text{expected under } \mathcal{H}_0}\hspace{-0.7em}.
+$$
+</span>
+</div>
+
+. . .
+
+<div class="rounded-box">
+<span style="font-size: 65%">
+**Tsallis**. 
+\vspace{-35pt}
+\begin{multline}
+\label{eq-test-tsallis}
+S_{\tilde{\textit{T}_\lambda}}(\boldsymbol{Z}; L) = \tilde{\textit{T}_\lambda} - \biggl\{ \frac{1}{\lambda - 1} \Bigl[ 1 -
+\exp\Bigl(
+(1 - \lambda)\ln \widehat{\mu}
++ (\lambda - 1)\ln L
++ \ln\Gamma\bigl(\lambda(L - 1) + 1\bigr)
+- \lambda\ln\Gamma(L)
+- \bigl(\lambda(L - 1) + 1\bigr)\ln \lambda
+\Bigr) \Bigr] \biggr\}.
+\end{multline}
+$$
+S_{\tilde{\textit{T}_\lambda}} =
+\underbrace{\tilde{\textit{T}_\lambda}}_{\text{estimated}} -
+\underbrace{T_\lambda(\Gamma_{\text{SAR}})}_{\text{expected under } \mathcal{H}_0}\hspace{-0.9em}.
+$$
+</span>
+</div>
+#### Asymptotic Normality: Test Based on Shannon Entropy
+
+<br>
+
+```{r figdensities_shannon, dev="svg", echo=FALSE, message=FALSE, warning=FALSE, out.width="90%", fig.cap="Empirical densities of $S_{\\widetilde{H}_{AO}}(\\boldsymbol{Z}; L)$ under $\\mathcal{H}_0$.", fig.width=10, fig.height=5.0}
+
+theme_set(theme_minimal() +
+            theme(text = element_text(family = "serif"),
+                  legend.position = "bottom",
+                  legend.text = element_text(angle = 0, vjust = 0.5)))
+
+x_limits <- c(-0.5, 0.5)
+x_breaks <- seq(-0.4, 0.4, by = 0.2)
+y_limits <- c(0, 7)
+
+sample.size <- c(49, 81, 121)
+selected_L_values <- c(5, 18)
+
+all_plots <- list()
+
+for (L in selected_L_values) {
+  load(paste0("./Data/resultsS_", L, ".Rdata"))
+  
+  combined_data <- do.call(rbind, all_TestStatistics[[as.character(L)]])
+  combined_data$L <- L
+  combined_data$CurveOrder <- factor(combined_data$SampleSize, levels = rev(sample.size))
+  combined_data$LegendOrder <- factor(combined_data$SampleSize, levels = sample.size)
+
+  p <- ggplot(combined_data, aes(x = Test_Statistics, col = LegendOrder, linetype = LegendOrder, group = CurveOrder)) +
+  geom_line(stat = "density", linewidth = 1.5) +
+ # scale_color_brewer(palette = "Dark2", name = "Sample Size") +
+  scale_color_viridis(discrete = TRUE, option = "D", direction = -1, begin = 0.2, end = 0.7, name = "Sample Size") +
+  scale_linetype_manual(values = rep("solid", length(sample.size)), name = "Sample Size") +
+  scale_x_continuous(limits = x_limits, breaks = x_breaks, minor_breaks = NULL) +
+  scale_y_continuous(limits = y_limits, minor_breaks = NULL) +
+  labs(
+      x = expression("Test Statistic" ~ S[widetilde(italic(H))[AO]](italic(bold(Z))* ";" **phantom(" ")* italic(L))), 
+      y = "Density"
+  ) +
+  ggtitle(bquote(italic(L) == .(L))) +
+  theme(plot.title = element_text(hjust = 0.5, size = 16, margin = margin(b = 2)),
+        axis.text = element_text(size = 16),     
+        axis.title = element_text(size = 16),    
+        legend.text = element_text(size = 16),   
+        legend.title = element_text(size = 16)) 
+
+
+  all_plots[[as.character(L)]] <- p
+}
+
+combined_plot <- wrap_plots(all_plots, ncol = 2, nrow = 1) +
+  plot_layout(guides = "collect")
+
+print(combined_plot)
+```
+
+
+
+#### Asymptotic Normality: Test Based on Rényi Entropy
+
+<br>
+
+```{r figdensitiesr, dev="svg",  echo=FALSE, message=FALSE, warning=FALSE,  out.width="90%",   fig.cap="Empirical densities of $S_{\\widetilde{R}_{\\lambda}}(\\boldsymbol{Z}; L)$ under $\\mathcal{H}_0$, with $\\lambda=0.9$.", fig.width=10, fig.height=5.0}
+#fig.show="hide", 
+# eval=FALSE,  #
+
+theme_set(theme_minimal() +
+            theme(text = element_text(family = "serif"),
+                  legend.position = "bottom",
+                  legend.text = element_text(angle = 0, vjust = 0.5)))
+
+x_limits <- c(-0.5, 0.5)  # Límites del eje X
+x_breaks <- seq(-0.4, 0.4, by = 0.2)  # Ticks del eje X
+y_limits <- c(0, 7)       # Límites del eje Y
+
+sample.size <- c(49, 81, 121)
+
+selected_L_values <- c(5, 18)
+
+all_plots <- list()
+
+for (L in selected_L_values) {
+  load(paste0("./Data/resultsR_", L, ".Rdata"))
+
+  combined_data <- do.call(rbind, all_TestStatistics[[as.character(L)]])
+  combined_data$L <- L
+  
+  
+  combined_data$CurveOrder <- factor(combined_data$SampleSize, levels = rev(sample.size))
+  
+  
+  combined_data$LegendOrder <- factor(combined_data$SampleSize, levels = sample.size)
+
+  p <- ggplot(combined_data, aes(x = Test_Statistics, col = LegendOrder, linetype = LegendOrder, group = CurveOrder)) +
+    geom_line(stat = "density", linewidth = 1.5) +
+    scale_color_viridis(discrete = TRUE, option = "C", direction = -1, begin = 0.2, end = 0.7, name = "Sample Size") +
+    scale_linetype_manual(values = rep("solid", length(sample.size)), name = "Sample Size") +
+    scale_x_continuous(limits = x_limits, breaks = x_breaks, minor_breaks = NULL) +
+    #scale_x_continuous(limits = x_limits, breaks = x_breaks) + 
+    scale_y_continuous(limits = y_limits, minor_breaks = NULL)+
+    #scale_y_continuous(limits = y_limits) +  
+    labs(
+        x = expression("Test Statistic" ~ S[widetilde(italic(R))[lambda]](italic(bold(Z))* ";" **phantom(" ")* italic(L))), 
+        y = "Density"
+    ) +
+    ggtitle(bquote(italic(L) == .(L))) +
+    theme(plot.title = element_text(hjust = 0.5, size = 16, margin = margin(b = 2)),
+          axis.text = element_text(size = 16),     
+        axis.title = element_text(size = 16),    
+        legend.text = element_text(size = 16),   
+        legend.title = element_text(size = 16)   
+          ) 
+
+  all_plots[[as.character(L)]] <- p
+}
+
+
+combined_plot <- wrap_plots(all_plots, ncol = 2, nrow = 1) +
+  plot_layout(guides = "collect")
+
+print(combined_plot)
+
+
+```
+
+
+#### Asymptotic Normality: Test Based on Tsallis Entropy
+
+<br>
+
+```{r figdensitiestsallis, dev="svg",  echo=FALSE, message=FALSE, warning=FALSE,  out.width="90%",   fig.cap="Empirical densities of $S_{\\widetilde{T}_{\\lambda}}(\\boldsymbol{Z}; L)$ under $\\mathcal{H}_0$, with $\\lambda=0.85$.", fig.width=10, fig.height=5.0}
+#fig.show="hide", 
+# eval=FALSE,  #
+
+theme_set(theme_minimal() +
+            theme(text = element_text(family = "serif"),
+                  legend.position = "bottom",
+                  legend.text = element_text(angle = 0, vjust = 0.5)))
+
+x_limits <- c(-0.5, 0.5)  # Límites del eje X
+x_breaks <- seq(-0.4, 0.4, by = 0.2)  # Ticks del eje X
+y_limits <- c(0, 7)       # Límites del eje Y
+
+sample.size <- c(49, 81, 121)
+
+selected_L_values <- c(5, 18)
+
+all_plots <- list()
+
+for (L in selected_L_values) {
+  load(paste0("./Data/resultsT2_", L, ".Rdata"))
+
+  combined_data <- do.call(rbind, all_TestStatistics[[as.character(L)]])
+  combined_data$L <- L
+  
+  
+  combined_data$CurveOrder <- factor(combined_data$SampleSize, levels = rev(sample.size))
+  
+  
+  combined_data$LegendOrder <- factor(combined_data$SampleSize, levels = sample.size)
+  
+    p <- ggplot(combined_data, aes(x = Test_Statistics, col = LegendOrder, linetype = LegendOrder, group = CurveOrder)) +
+  geom_line(stat = "density", linewidth = 1.5) +
+  scale_color_brewer(palette = "Set1", name = "Sample Size") +
+  scale_linetype_manual(values = rep("solid", length(sample.size)), name = "Sample Size") +
+  scale_x_continuous(limits = x_limits, breaks = x_breaks, minor_breaks = NULL) +
+  scale_y_continuous(limits = y_limits, minor_breaks = NULL) +
+  labs(
+      x = expression("Test Statistic" ~ S[widetilde(italic(T))[lambda]](italic(bold(Z))* ";" **phantom(" ")* italic(L))), 
+      y = "Density"
+  ) +
+  ggtitle(bquote(italic(L) == .(L))) +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 16, margin = margin(b = 2)),
+    axis.text = element_text(size = 16),     
+    axis.title = element_text(size = 16),    
+    legend.text = element_text(size = 16),   
+    legend.title = element_text(size = 16)
+  )
+
+
+  
+  all_plots[[as.character(L)]] <- p
+}
+
+
+combined_plot <- wrap_plots(all_plots, ncol = 2, nrow = 1) +
+  plot_layout(guides = "collect")
+
+print(combined_plot)
+
+
+```
+
+#### Practical Procedure
+
+<br><br><br><br>
+
+![Diagram of the entropy-based hypothesis test.](./images/Diagrama_test.png){.center width=70%}
+
+
+####  Size & Power  of the Proposed Tests
+
+```{r figcompare, dev="svg", echo=FALSE, message=FALSE, warning=FALSE, fig.width=22, fig.height=10,  fig.cap=" Empirical Size (Type I Error) for different sample sizes and $L$ values."}
+#library(ggplot2)
+load("./Data/type_I_results-shannon.Rdata")
+load("./Data/results_power-shannon.Rdata")
+type_I_shannon <- results %>%
+  group_by(L, Sample_Size, Alpha_Nominal) %>%
+  summarise(Type_I_Error = mean(P_Value), .groups = "drop") %>%
+  mutate(Entropy = "Shannon")
+
+power_shannon <- results_power %>%
+  rename(Alpha_Nominal = alpha_nominal) %>%
+  mutate(Entropy = "Shannon")
+load("./Data/type_I_results.Rdata")
+load("./Data/results_power.Rdata")
+type_I_renyi <- results %>%
+  group_by(L, Sample_Size, Alpha_Nominal) %>%
+  summarise(Type_I_Error = mean(P_Value), .groups = "drop") %>%
+  mutate(Entropy = "Rényi")
+
+power_renyi <- results_power %>%
+  rename(Alpha_Nominal = alpha_nominal) %>%
+  mutate(Entropy = "Rényi")
+
+load("./Data/type_I_results-tsallis.Rdata")
+load("./Data/results_power-tsallis.Rdata")
+type_I_tsallis <- results %>%
+  group_by(L, Sample_Size, Alpha_Nominal) %>%
+  summarise(Type_I_Error = mean(P_Value), .groups = "drop") %>%
+  mutate(Entropy = "Tsallis")
+
+power_tsallis <- results_power %>%
+  rename(Alpha_Nominal = alpha_nominal) %>%
+  mutate(Entropy = "Tsallis")
+
+
+
+# 
+size_all <- bind_rows(type_I_shannon,  type_I_renyi, type_I_tsallis)
+power_all <- bind_rows(power_shannon,  power_renyi, power_tsallis)
+
+# 
+comparison_data <- left_join(size_all, power_all,
+                             by = c("L", "Sample_Size", "Alpha_Nominal", "Entropy"))
+
+theme_set(theme_minimal() +
+            theme(text = element_text(family = "serif"),
+                  legend.position = "bottom"))
+#library(patchwork)
+
+
+plot_size <- ggplot(comparison_data, aes(x = Sample_Size, y = Type_I_Error, color = Entropy)) +
+  geom_hline(yintercept = c(0.01, 0.05, 0.1), linetype = "dotted", color = "gray70", linewidth = 0.6) +
+  geom_line(linewidth = 1.7, alpha = 0.9) +
+  facet_grid(Alpha_Nominal ~ L, labeller = labeller(
+    Alpha_Nominal = function(x) paste0(x),
+    L = label_both
+  )) +
+  scale_y_continuous(breaks = seq(0, 0.15, by = 0.05), limits = c(0, 0.15), minor_breaks = NULL) +
+  scale_x_continuous(breaks = c(25, 49, 81, 121),minor_breaks = NULL) +  # <-- 
+  scale_color_brewer(palette = "Dark2") +
+  labs(
+   # title = "Empirical Size (Type I Error)",
+    x =  expression(italic(n)),
+    y = "Size",
+    color = "Test statistic"
+  ) +
+  theme_minimal() +
+  theme(
+  text = element_text(family = "serif"),
+  axis.text = element_text(size = 18),
+  axis.title = element_text(size = 20),
+  strip.text = element_text(size = 20),       # <-- Tamaño del texto en las facetas ("L = 5", etc.)
+  strip.text.y = element_text(size = 20),     # <-- Tamaño en el eje vertical de las facetas ("0.01", etc.)
+  strip.text.x = element_text(size = 20),     # <-- (opcional) solo para eje horizontal
+  legend.position = "bottom",
+  legend.box = "horizontal",
+  legend.text = element_text(size = 20),
+  legend.title = element_text(size = 20),
+  panel.border = element_rect(color = "black", fill = NA, linewidth = 0.8) 
+) +
+  guides(color = guide_legend(nrow = 1))
+
+plot_size
+
+```
+
+####  Size & Power of the Proposed Tests
+
+```{r figcomparep, dev="svg", echo=FALSE, message=FALSE, warning=FALSE, fig.width=22, fig.height=10,  fig.cap=" Power for different sample sizes and $L$ values."}
+#library(ggplot2)
+
+load("./Data/type_I_results-shannon.Rdata")
+load("./Data/results_power-shannon.Rdata")
+type_I_shannon <- results %>%
+  group_by(L, Sample_Size, Alpha_Nominal) %>%
+  summarise(Type_I_Error = mean(P_Value), .groups = "drop") %>%
+  mutate(Entropy = "Shannon")
+
+power_shannon <- results_power %>%
+  rename(Alpha_Nominal = alpha_nominal) %>%
+  mutate(Entropy = "Shannon")
+load("./Data/type_I_results.Rdata")
+load("./Data/results_power.Rdata")
+type_I_renyi <- results %>%
+  group_by(L, Sample_Size, Alpha_Nominal) %>%
+  summarise(Type_I_Error = mean(P_Value), .groups = "drop") %>%
+  mutate(Entropy = "Rényi")
+
+power_renyi <- results_power %>%
+  rename(Alpha_Nominal = alpha_nominal) %>%
+  mutate(Entropy = "Rényi")
+
+load("./Data/type_I_results-tsallis.Rdata")
+load("./Data/results_power-tsallis.Rdata")
+type_I_tsallis <- results %>%
+  group_by(L, Sample_Size, Alpha_Nominal) %>%
+  summarise(Type_I_Error = mean(P_Value), .groups = "drop") %>%
+  mutate(Entropy = "Tsallis")
+
+power_tsallis <- results_power %>%
+  rename(Alpha_Nominal = alpha_nominal) %>%
+  mutate(Entropy = "Tsallis")
+
+
+
+# 
+size_all <- bind_rows(type_I_shannon,  type_I_renyi, type_I_tsallis)
+power_all <- bind_rows(power_shannon,  power_renyi, power_tsallis)
+
+# 
+comparison_data <- left_join(size_all, power_all,
+                             by = c("L", "Sample_Size", "Alpha_Nominal", "Entropy"))
+
+theme_set(theme_minimal() +
+            theme(text = element_text(family = "serif"),
+                  legend.position = "bottom"))
+
+
+
+
+plot_power <- ggplot(comparison_data, aes(x = Sample_Size, y = power, color = Entropy)) +
+  geom_line(linewidth = 1.7, alpha = 0.9) +
+  facet_grid(Alpha_Nominal ~ L, labeller = labeller(
+    Alpha_Nominal = function(x) paste0(x),
+    L = label_both
+  )) +
+  scale_y_continuous(breaks = seq(0.7, 1.0, by = 0.1), limits = c(0.5, 1.0),minor_breaks = NULL) +
+  scale_x_continuous(breaks = c(25, 49, 81, 121), minor_breaks = NULL) +  # 
+  scale_color_brewer(palette = "Dark2") +
+  labs(
+   # title = "Empirical Power",
+    x =  expression(italic(n)),
+    y = "Power",
+    color = "Test statistic"
+  ) +
+  theme_minimal() +
+  theme(
+  text = element_text(family = "serif"),
+  axis.text = element_text(size = 18),
+  axis.title = element_text(size = 20),
+  strip.text = element_text(size = 20),       # <-- Tamaño del texto en las facetas ("L = 5", etc.)
+  strip.text.y = element_text(size = 20),     # <-- Tamaño en el eje vertical de las facetas ("0.01", etc.)
+  strip.text.x = element_text(size = 20),     # <-- (opcional) solo para eje horizontal
+  legend.position = "bottom",
+  legend.box = "horizontal",
+  legend.text = element_text(size = 20),
+  legend.title = element_text(size = 20),
+  panel.border = element_rect(color = "black", fill = NA, linewidth = 0.8)
+) +
+  guides(color = guide_legend(nrow = 1))
+
+plot_power
+
+```
+
+## RESULTS {background="#045D5D"}
+
+####  Application to Simulated Data
+
+<br>
+<br>
+
+::: {layout-ncol=3}
+
+![Phantom: Gomez et al. [-@Gomez2017].](./Figures/Phantom1.png){.center}
+
+![Simulated image 1,  with $L=5$.](./Figures/sim1.png)
+
+![Simulated image 2, with $L=9$.](./Figures/Sim2.png)
+
+
+:::
+
+
+#### Application to Simulated Data: $L=5$ {.allowframebreaks visibility="uncounted"}
+
+
+
+::: {.grid layout="[[1,1,1], [1,1,1]]"}
+
+![$p$-value map $\small{S_{\widetilde{H}_{\text{AO}}}}$](./Figures/Phantom_4_z_b200_w7-AO.png){width=70%}
+
+![$p$-value map $\small{S_{\widetilde{R}_{\lambda}}}$](./Figures/Phantom_4_z_0.9_b200_w7-renyi.png){width=70%}
+
+![$p$-value map $\small{S_{\widetilde{T}_{\lambda}}}$](./Figures/Phantom_4_z_0.85_b200_w7-tsallis77.png){width=70%}
+
+![Binary map $\small{S_{\widetilde{H}_{\text{AO}}}}$](./Figures/0.05_Phantom_4_z_b200_w7-AO.png){width=70%}
+
+![Binary map  $\small{S_{\widetilde{R}_{\lambda}}}$](./Figures/0.05_Phantom_4_z_0.9_b200_w7-renyi.png){width=70%}
+
+![Binary map  $\small{S_{\widetilde{T}_{\lambda}}}$](./Figures/0.05_Phantom_4_z_0.85_b200_w7-tsallis.png){width=70%}
+
+:::
+
+
+
+#### Application to Simulated Data: $L=9$ {.allowframebreaks visibility="uncounted"}
+
+
+
+::: {.grid layout="[[1,1,1], [1,1,1]]"}
+
+![$p$-value map $\small{S_{\widetilde{H}_{\text{AO}}}}$](./Figures/Phantom4_L9_1_8_b100_w7-AO-H.png){width=70%}
+
+![$p$-value map $\small{S_{\widetilde{R}_{\lambda}}}$](./Figures/Phantom4_L9_1_8_b100_w7-09-renyi.png){width=70%}
+
+![$p$-value map $\small{S_{\widetilde{T}_{\lambda}}}$](./Figures/Phantom4_L9_1_8_0.85_b100_w7-tsallis.png){width=70%}
+
+![Binary map $\small{S_{\widetilde{H}_{\text{AO}}}}$](./Figures/0.05_Phantom4_L9_1_8_b100_w7-AO.png){width=70%}
+
+![Binary map  $\small{S_{\widetilde{R}_{\lambda}}}$](./Figures/0.05_Phantom4_L9_1_8_b100_w7-09-renyi.png){width=70%}
+
+![Binary map  $\small{S_{\widetilde{T}_{\lambda}}}$](./Figures/0.05_Phantom4_L9_1_8_0.85_b100_w7-tsallis.png){width=70%}
+
+:::
+
+
+
+
+
+
+
+#### Applications to SAR Data: London, UK $(L = 1,\ \text{Resolution:}\ 0.99 \times 0.99\ \text{m})$
+
+<br><br>
+
+::: {layout="[[28,-2,40]]"}
+![SAR image (TanDEM-X)](./Figures/london_2000.png)
+
+![Optical image](./Figures/london_optical_.png)
+:::
+
+
+
+#### Applications to SAR Data: London, UK $(L = 1,\ \text{Resolution:}\ 0.99 \times 0.99\ \text{m})$ {.allowframebreaks visibility="uncounted"}
+
+
+
+::: {.grid layout="[[1,1,1], [1,1,1]]"}
+
+![$p$-value map $\small{S_{\widetilde{H}_{\text{AO}}}}$](./Figures/p-values_shannon-london_H1.png){width=70%}
+
+![$p$-value map $\small{S_{\widetilde{R}_{\lambda}}}$](./Figures/p-values_renyi-london_H1.png){width=70%}
+
+![$p$-value map $\small{S_{\widetilde{T}_{\lambda}}}$](./Figures/p-values_tsallis-london_H1_new.png){width=70%}
+
+![Binary map $\small{S_{\widetilde{H}_{\text{AO}}}}$ $(p < 0.05)$](./Figures/H_005_london_shannon.png){width=70%}
+
+![Binary map  $\small{S_{\widetilde{R}_{\lambda}}}$ $(p < 0.05)$](./Figures/H_005_london_renyi_L1_.png){width=70%}
+
+![Binary map  $\small{S_{\widetilde{T}_{\lambda}}}$ $(p < 0.05)$](./Figures/H_005_london1_TSALLIS.png){width=70%}
+
+:::
+
+
+#### Applications to SAR Data: San Francisco, USA $(L = 1,\ \text{Resolution:}\ 1.84 \times 1.84\ \text{m})$
+
+<br><br>
+
+::: {layout-ncol=2}
+![SAR image (PAZ)](./Figures/SF_3300.png){width=70%}
+
+![Optical image](./Figures/san-francisco-optical1.png){width=70%}
+:::
+
+
+#### Applications to SAR Data: San Francisco, USA $(L = 1,\ \text{Resolution:}\ 1.84 \times 1.84\ \text{m})$ {.allowframebreaks visibility="uncounted"}
+
+
+
+::: {.grid layout="[[1,1,1], [1,1,1]]"}
+
+![$p$-value map $\small{S_{\widetilde{H}_{\text{AO}}}}$](./Figures/p-values_results_SF_AO_w7.png){width=70%}
+
+![$p$-value map $\small{S_{\widetilde{R}_{\lambda}}}$](./Figures/p-values_SF_3300_renyi_w7_3_L1.png){width=70%}
+
+![$p$-value map $\small{S_{\widetilde{T}_{\lambda}}}$](./Figures/p-valuesL1_SanFrancisco_tsallis_b100_w7s.png){width=70%}
+
+![Binary map $\small{S_{\widetilde{H}_{\text{AO}}}}$ $(p < 0.05)$](./Figures/H_005_results_ENVI_SF_3300_L1_AO_w7.png){width=65%}
+
+![Binary map  $\small{S_{\widetilde{R}_{\lambda}}}$ $(p < 0.05)$](./Figures/H_005_SF_3300_renyi_w7_3_L1.png){width=65%}
+
+![Binary map  $\small{S_{\widetilde{T}_{\lambda}}}$ $(p < 0.05)$](./Figures/H_005_L1_SanFrancisco_tsallis_b100_w7_.png){width=65%}
+
+:::
+
+
+#### Applications to SAR Data:  Munich, Germany $(L = 12,\ \text{Resolution:}\ 4.9 \times 7.2\ \text{m})$
+
+<br><br>
+
+::: {layout-ncol=2}
+![SAR image (UAVSAR)](./Figures/munich_1024.png){width=70%}
+
+![Optical image](./Figures/munich_optical.png){width=68%}
+:::
+
+
+#### Applications to SAR Data: Munich, Germany $(L = 12,\ \text{Resolution:}\ 4.9 \times 7.2\ \text{m})$ {.allowframebreaks visibility="uncounted"}
+
+
+
+::: {.grid layout="[[1,1,1], [1,1,1]]"}
+
+![$p$-value map $\small{S_{\widetilde{H}_{\text{AO}}}}$](./Figures/p-values_shannon-munich-H.png){width=70%}
+
+![$p$-value map $\small{S_{\widetilde{R}_{\lambda}}}$](./Figures/p-values_renyi-munich-H1.png){width=70%}
+
+![$p$-value map $\small{S_{\widetilde{T}_{\lambda}}}$](./Figures/p-values__tsallis_lambda85_B100-H1.png){width=70%}
+
+![Binary map $\small{S_{\widetilde{H}_{\text{AO}}}}$ $(p < 0.05)$](./Figures/H_005_shannon_munich.png){width=65%}
+
+![Binary map  $\small{S_{\widetilde{R}_{\lambda}}}$ $(p < 0.05)$](./Figures/H_005_renyi_munich.png){width=65%}
+
+![Binary map  $\small{S_{\widetilde{T}_{\lambda}}}$ $(p < 0.05)$](./Figures/H_005L12_envi_munich_size_1024_tsallis_lambda85_B100.png){width=65%}
+
+:::
+
+#### Applications to SAR Data:  New Orleans city, USA $(L = 12,\ \text{Resolution:}\ 4.9 \times 7.2\ \text{m})$
+
+<br><br>
+
+::: {layout-ncol=2}
+![SAR image (UAVSAR)](./Figures/NewOrleans_1400.png){width=70%}
+
+![Optical image](./Figures/new-orleans-optical.png){width=64%}
+:::
+
+#### Applications to SAR Data: New Orleans city, USA $(L = 12,\ \text{Resolution:}\ 4.9 \times 7.2\ \text{m})$ {.allowframebreaks visibility="uncounted"}
+
+
+
+::: {.grid layout="[[1,1,1], [1,1,1]]"}
+
+![$p$-value map $\small{S_{\widetilde{H}_{\text{AO}}}}$](./Figures/p-values_shannon-New_or-H.png){width=70%}
+
+![$p$-value map $\small{S_{\widetilde{R}_{\lambda}}}$](./Figures/p-values_renyi-New_or-H.png){width=70%}
+
+![$p$-value map $\small{S_{\widetilde{T}_{\lambda}}}$](./Figures/p-values_L_12_New_orleans_size_1400_tsallis_lambda085_B100-H1.png){width=70%}
+
+![Binary map $\small{S_{\widetilde{H}_{\text{AO}}}}$ $(p < 0.05)$](./Figures/H_005_NewOrleans_1400_AO.png){width=65%}
+
+![Binary map  $\small{S_{\widetilde{R}_{\lambda}}}$ $(p < 0.05)$](./Figures/H_005_NewOrleans_1400_renyi.png){width=65%}
+
+![Binary map  $\small{S_{\widetilde{T}_{\lambda}}}$ $(p < 0.05)$](./Figures/0.05_L_12_New_orleans_size_1400_tsallis_lambda085_B100.png){width=65%}
+
+:::
+
+
+#### Applications to SAR Data:  Dublin Port, Ireland $(L = 16,\ \text{Resolution:}\ 1.35 \times 1.35\ \text{m})$
+
+<br><br>
+
+::: {layout="[[24,43]]"}
+![SAR image (TanDEM-X)](./Figures/dublin_1100.png)
+
+![Optical image](./Figures/dublin.png)
+:::
+
+#### Applications to SAR Data: Dublin Port, Ireland $(L = 16,\ \text{Resolution:}\ 1.35 \times 1.35\ \text{m})$ {.allowframebreaks visibility="uncounted"}
+
+
+
+::: {.grid layout="[[1,1,1], [1,1,1]]"}
+
+![$p$-value map $\small{S_{\widetilde{H}_{\text{AO}}}}$](./Figures/p-values_AO_1100-dublin-H1.png){width=70%}
+
+![$p$-value map $\small{S_{\widetilde{R}_{\lambda}}}$](./Figures/p-values_renyi_1100-dublin-H1.png){width=70%}
+
+![$p$-value map $\small{S_{\widetilde{T}_{\lambda}}}$](./Figures/p-values_L16_envi_dublin_size_1100_tsallis_lambda085_B100-H1.png){width=70%}
+
+![Binary map $\small{S_{\widetilde{H}_{\text{AO}}}}$ $(p < 0.05)$](./Figures/H_005_dublin_AO_1100.png){width=65%}
+
+![Binary map  $\small{S_{\widetilde{R}_{\lambda}}}$ $(p < 0.05)$](./Figures/H_005_dublin_renyi_1100.png){width=65%}
+
+![Binary map  $\small{S_{\widetilde{T}_{\lambda}}}$ $(p < 0.05)$](./Figures/H_005_L16_envi_dublin_size_1100_tsallis_lambda085_B100.png){width=65%}
+
+:::
+
+
+#### Applications to SAR Data:  Foggia, Italy: $(L = 24,\ \text{Resolution:}\ 2.08 \times 2.08\ \text{m})$
+
+<br><br>
+
+::: {layout="[[22,33]]"}
+![SAR image (Iceye)](./Figures/foggia-italy_1900.png)
+
+![Optical image](./Figures/foggia-italy-optical.png)
+:::
+
+
+#### Applications to SAR Data: Foggia, Italy: $(L = 24,\ \text{Resolution:}\ 2.08 \times 2.08\ \text{m})$ {.allowframebreaks visibility="uncounted"}
+
+
+::: {.grid layout="[[1,1,1], [1,1,1]]"}
+
+![$p$-value map $\small{S_{\widetilde{H}_{\text{AO}}}}$](./Figures/p-values_shannon-Foggia-H_77.png){width=70%}
+
+![$p$-value map $\small{S_{\widetilde{R}_{\lambda}}}$](./Figures/p-values_renyi-foggiaH-new.png){width=70%}
+
+![$p$-value map $\small{S_{\widetilde{T}_{\lambda}}}$](./Figures/p-values_L24_Foggia1900_tsallis_lambda085_B100aa.png){width=70%}
+
+![Binary map $\small{S_{\widetilde{H}_{\text{AO}}}}$ $(p < 0.05)$](./Figures/H_005_AO_italy_1900.png){width=65%}
+
+![Binary map  $\small{S_{\widetilde{R}_{\lambda}}}$ $(p < 0.05)$](./Figures/H_005_renyi_italy_1900_L1.png){width=65%}
+
+![Binary map  $\small{S_{\widetilde{T}_{\lambda}}}$ $(p < 0.05)$](./Figures/H_005_L24_envi_Foggia_size_1900_tsallis_lambda085_B100.png){width=65%}
+
+:::
+
+#### Quantitative Evaluation
+
+
+::: {layout-ncol=3  #fig:roi-scenes1 fig-subcaption=true}
+
+![London SAR image with selected ROIs.](./Figures/london_roi.png)
+
+![Munich SAR image with selected ROIs.](./Figures/munich_roi.png)
+
+![Dublin SAR image with selected ROIs.](./Figures/dublin_roi3.png)
+
+:::
+
+**Figure:** Selected ROIs for the quantitative evaluation. Red polygons indicate heterogeneous areas (class 1), and blue polygons indicate homogeneous areas (class 0). 
+
+
+#### Quantitative Evaluation {.allowframebreaks visibility="uncounted"}
+
+![**Table**: Quantitative measures of heterogeneity detection](./Figures/table1.png){.center width=70%}
+
+#### Quantitative Evaluation {.allowframebreaks visibility="uncounted"}
+
+<br><br>
+
+```{r figROCz,  dev="svg", echo=FALSE, message=FALSE, warning=FALSE, fig.cap="ROC curves", fig.width=13, fig.height=4}
+# 
+
+
+roc_file <- "./Data/roc_results_5.RData"
+
+rotate_matrix <- function(m) t(apply(m, 2, rev))
+
+mk_raster <- function(mat, sar) {
+  r <- rast(nrows=nrow(mat), ncols=ncol(mat),
+            ext = ext(xmin(sar)+3*res(sar)[1], xmax(sar)-3*res(sar)[1],
+                      ymin(sar)+3*res(sar)[2], ymax(sar)-3*res(sar)[2]),
+            crs = crs(sar))
+  values(r) <- as.vector(mat)
+  flip(r, direction="vertical")
+}
+
+if (!file.exists(roc_file)) {
+
+  cities <- list(
+    London = list(
+      sar     = "./Data/SAR/envi_london_2000/Intensity_HH.img",
+      rois    = "./Data/rois_london_m.gpkg",
+      renyi   = "./Data/p_values_renyi_london.Rdata",
+      shannon = "./Data/p_values_shannon_london.Rdata",
+      tsallis = "./Data/p_values_tsallis_london1.Rdata"
+    ),
+    Munich = list(
+      sar     = "./Data/SAR/envi_munich_1024_final/Intensity_HH.img",
+      rois    = "./Data/rois_munich.gpkg",
+      renyi   = "./Data/p_values_renyi_munich.Rdata",
+      shannon = "./Data/p_values_shannon_munich.Rdata",
+      tsallis = "./Data/p_values_tsallis_munich1.Rdata"
+    ),
+    Dublin = list(
+      sar     = "./Data/SAR/envi_dublin_1100_HH/Intensity_HH.img",
+      rois    = "./Data/rois_dublin_m_ok.gpkg",
+      renyi   = "./Data/p_values_renyi_dublin.Rdata",
+      shannon = "./Data/p_values_shannon_dublin.Rdata",
+      tsallis = "./Data/p_values_tsallis_dublin1.Rdata"
+    )
+  )
+
+  roc_list <- list()
+
+  for (city in names(cities)) {
+    cfg <- cities[[city]]
+    sar <- rast(cfg$sar)
+    rois <- st_read(cfg$rois, quiet=TRUE) |> st_transform(crs(sar))
+
+    matR <- rotate_matrix(get(load(cfg$renyi)))
+    matS <- rotate_matrix(get(load(cfg$shannon)))
+    matT <- rotate_matrix(get(load(cfg$tsallis)))
+
+    rR <- mk_raster(matR, sar)
+    rS <- mk_raster(matS, sar)
+    rT <- mk_raster(matT, sar)
+
+    gt <- rasterize(rois, rR, field="class")
+    idx <- !is.na(values(gt))
+    truth <- factor(values(gt)[idx], levels=c(0,1), labels=c("0","1"))
+    scoreR <- values(rR)[idx]
+    scoreS <- values(rS)[idx]
+    scoreT <- values(rT)[idx]
+
+    rocR <- roc(truth, scoreR, levels=c("0","1"), direction=">")
+    rocS <- roc(truth, scoreS, levels=c("0","1"), direction=">")
+    rocT <- roc(truth, scoreT, levels=c("0","1"), direction=">")
+
+    aucR <- round(auc(rocR), 3)
+    aucS <- round(auc(rocS), 3)
+    aucT <- round(auc(rocT), 3)
+
+    df <- data.frame(
+      FPR = c(1 - rocR$specificities, 1 - rocS$specificities, 1 - rocT$specificities),
+      TPR = c(rocR$sensitivities, rocS$sensitivities, rocT$sensitivities),
+      Method = factor(rep(c("Renyi", "Shannon", "Tsallis"),
+                          times=c(length(rocR$sensitivities),
+                                  length(rocS$sensitivities),
+                                  length(rocT$sensitivities))),
+                      levels=c("Renyi","Shannon","Tsallis"))
+    )
+
+    labels <- c(
+      Renyi   = bquote(italic(S)[widetilde(italic(R))[lambda]] ~ "(AUC =" ~ .(aucR) ~ ")"),
+      Shannon = bquote(italic(S)[widetilde(italic(H))[AO]]     ~ "(AUC =" ~ .(aucS) ~ ")"),
+      Tsallis = bquote(italic(S)[widetilde(italic(T))[lambda]]      ~ "(AUC =" ~ .(aucT) ~ ")")
+    )
+
+    roc_list[[city]] <- list(df = df, labels = labels)
+  }
+
+  save(roc_list, file = roc_file)
+} else {
+  load(roc_file)
+}
+
+plot_city <- function(df, labels, title){
+  ggplot(df, aes(x = FPR, y = TPR, colour = Method, linewidth = Method)) +
+    geom_line(alpha = 0.7) +
+    scale_colour_manual(values=c(Renyi="#FC4E07", Shannon="#0072B2", Tsallis="#009E73"),
+                        labels=labels) +
+    scale_linewidth_manual(values=c(Renyi=2.1, Shannon=2.1, Tsallis=2.1), guide=FALSE) +
+    scale_x_continuous(minor_breaks = NULL, labels = scales::number_format(accuracy = 0.1)) +
+    scale_y_continuous(minor_breaks = NULL, labels = scales::number_format(accuracy = 0.1))+
+    guides(colour = guide_legend(override.aes=list(linewidth=c(2.0,2.0,2.0), alpha=0.8))) +
+    labs(x = "PFA ",
+         y = "Pd ",
+         title = title) +
+    theme_minimal(base_family = "serif") +
+    theme(plot.title = element_text(hjust = 0.5, size = 12,  face = "bold"),
+          axis.title = element_text(size = 12, face = "bold"),
+          axis.text = element_text(size = 12),
+          legend.position = c(0.95, 0.05),
+          legend.justification = c(1, 0),
+          legend.text  = element_text(size = 12),
+          legend.title = element_blank()
+    )
+}
+
+p1 <- plot_city(roc_list$London$df, roc_list$London$labels, "London")
+p2 <- plot_city(roc_list$Munich$df, roc_list$Munich$labels, "Munich")
+p3 <- plot_city(roc_list$Dublin$df, roc_list$Dublin$labels, "Dublin")
+
+p1 + p2 + p3 + plot_layout(ncol = 3)
+
+
+```
+
+
+## CONCLUSIONS  {background="#045D5D"}
+
+#### Conclusions
+
+
+We developed a statistical framework for detecting heterogeneity in SAR images,  
+focusing on the distinction between textured clutter and fully developed speckle,  
+assuming SAR intensity is modeled by the $\Gamma_{\text{SAR}}$ distribution.
+
+. . .
+
+<span class="highlight">Main insights: </span>  
+
+- Three entropy-based tests were developed: Shannon, Rényi, and Tsallis.
+
+- They are effective with small window sizes and generate clear $p$-value maps that support visual interpretation of the scene.
+
+
+- No parameter estimation for $\alpha$ is required.
+
+
+- The proposed tests control the size and achieve strong power across a wide range of scenarios.
+
+- Rényi and Tsallis tests generally outperform Shannon, especially when the number of looks ($L$) increases.
+
+
+- The overall approach is simple, practical, and suitable for fast and interpretable SAR image analysis.
+
+. . .
+
+ <span class="highlight">Future work: </span> 
+
+- Extend the methodology to PolSAR data via channel fusion or fully polarimetric modeling based on the complex Wishart distribution.
+
+
+
+
+
+#### Related Publications {.allowframebreaks visibility="uncounted"}
+
+::: {.small}
+
+The following peer-reviewed articles and conference paper have been published as part of or related to this research:
+
+1. **Alpala, J.; Nascimento, A. C.; Frery, A. C.**  
+   *Quantifying Heterogeneity in SAR Imagery with the Rényi Entropy*.  
+   _IEEE Geoscience and Remote Sensing Letters_, vol. 22, 2025.
+   
+   DOI: [10.1109/LGRS.2025.3581855](https://doi.org/10.1109/LGRS.2025.3581855)
+   
+2. **Frery, A. C.; Alpala, J.; Nascimento, A. C.**  
+   *Identifying Heterogeneity in SAR Data with New Test Statistics*.  
+   _Remote Sensing_, vol. 16, no. 11, p. 1973, 2024.  
+   DOI: [10.3390/rs16111973](https://doi.org/10.3390/rs16111973)
+
+3. **Alpala, J.; Nascimento, A. C.; Frery, A. C.**  
+   *Identifying Departures from the Fully Developed Speckle Hypothesis in Intensity SAR Data with Nonparametric Estimation of the Entropy*. In: _Proc. MIGARS – IEEE Conference on Machine Intelligence for GeoAnalytics and Remote Sensing_, 2024.  
+   DOI: [10.1109/MIGARS61408.2024.10544448](https://doi.org/10.1109/migars61408.2024.10544448)
+
+:::
+
+
+### References {.allowframebreaks visibility="uncounted"}
+
+::: {#refs style="font-size: 1.4em; line-height: 1.6em;"}
+:::
+
+
+<!-- ::: {#refs} -->
+<!-- ::: -->
+
+### Thanks for your attention! {.allowframebreaks visibility="uncounted"}
